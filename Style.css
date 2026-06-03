@@ -1,0 +1,141 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  background: #0a0e1a;
+  color: #e0e0e0;
+  line-height: 1.4;
+}
+.container {
+  max-width: 1000px;
+  margin: auto;
+  padding: 16px;
+}
+h1 {
+  text-align: center;
+  color: #ff6040;
+}
+.input-group {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+input, button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+input {
+  background: #1c2530;
+  color: white;
+  width: 200px;
+}
+button {
+  background: #ff6040;
+  color: white;
+  font-weight: bold;
+}
+button:active {
+  background: #e05030;
+}
+.loading {
+  text-align: center;
+  color: #ffaa00;
+  margin: 12px 0;
+}
+.error {
+  color: #ff4444;
+  text-align: center;
+}
+.hidden {
+  display: none;
+}
+.badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: bold;
+  margin-right: 12px;
+}
+.radiant-badge { background: #1e5128; }
+.dire-badge { background: #531515; }
+.hero-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.hero-icon {
+  width: 56px;
+  height: 40px;
+  background-size: cover;
+  border-radius: 4px;
+  border: 1px solid #333;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: 0.65rem;
+  background-color: #1c2530;
+}
+.ban-icon {
+  opacity: 0.5;
+  position: relative;
+}
+.ban-icon::after {
+  content: '✕';
+  position: absolute;
+  color: red;
+  font-size: 1.5rem;
+  line-height: 40px;
+}
+.chart-container, .chart-box {
+  background: #131820;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.charts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.chart-box {
+  flex: 1;
+  min-width: 280px;
+}
+.turning-point-info {
+  text-align: center;
+  margin-top: 8px;
+  color: #ffaa00;
+}
+.players-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.player-card {
+  background: #1c2530;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  border-left: 4px solid #ff6040;
+}
+.player-card.dire { border-left-color: #ff4040; }
+.player-card img {
+  width: 64px;
+  height: 36px;
+  border-radius: 4px;
+}
+.player-stats {
+  flex: 1;
+  font-size: 0.85rem;
+}
+.impact-badge {
+  float: right;
+  background: #ff6040;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
