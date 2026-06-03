@@ -1,7 +1,5 @@
 {
   "name": "dota2-analytics",
   "version": "3.0.0",
-  "dependencies": {
-    "node-fetch": "^2.7.0"
-  }
+  "private": true
 }
