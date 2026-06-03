@@ -1,6 +1,6 @@
-const fetch = require('node-fetch');
+// api/match.js
+// Используем глобальный fetch (Node 18+ на Vercel), никаких зависимостей
 
-// Коэффициенты для Win Probability (подобраны эмпирически)
 const GOLD_COEFF = 0.0004;
 const XP_COEFF = 0.0003;
 const KILL_COEFF = 0.015;
@@ -44,26 +44,68 @@ function calculateHeroImpact(player, matchDuration) {
 }
 
 module.exports = async (req, res) => {
+  // Разрешаем CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   const { matchId } = req.query;
-  if (!matchId) return res.status(400).json({ error: 'matchId required' });
+  if (!matchId) {
+    return res.status(400).json({ error: 'matchId required' });
+  }
+
+  const debug = {
+    step: 'start',
+    matchId,
+    errors: []
+  };
 
   try {
-    // 1. Загружаем базовые данные матча
-    const matchRes = await fetch(`https://api.opendota.com/api/matches/${matchId}`);
-    if (!matchRes.ok) throw new Error(`Match not found (status ${matchRes.status})`);
-    const match = await matchRes.json();
+    // 1. Запрос к OpenDota
+    debug.step = 'fetching match';
+    const matchUrl = `https://api.opendota.com/api/matches/${matchId}`;
+    const matchRes = await fetch(matchUrl);
+    debug.matchStatus = matchRes.status;
+
+    if (!matchRes.ok) {
+      throw new Error(`OpenDota match request failed with status ${matchRes.status}`);
+    }
+
+    const matchText = await matchRes.text();
+    let match;
+    try {
+      match = JSON.parse(matchText);
+    } catch (e) {
+      throw new Error(`Failed to parse match JSON: ${matchText.substring(0, 200)}`);
+    }
+
+    debug.matchKeys = Object.keys(match);
+    if (!match.players || match.players.length === 0) {
+      throw new Error('Match data has no players (maybe not parsed yet)');
+    }
 
     const dur = match.duration;
     const steps = Math.floor(dur / 60) + 1;
+    debug.duration = dur;
+    debug.steps = steps;
 
-    // 2. Загружаем поминутные графики
-    const graphRes = await fetch(`https://api.opendota.com/api/matches/${matchId}/graph`);
-    if (!graphRes.ok) throw new Error(`Graph data not available`);
-    const graph = await graphRes.json();
+    // 2. Запрос графика
+    debug.step = 'fetching graph';
+    const graphUrl = `https://api.opendota.com/api/matches/${matchId}/graph`;
+    const graphRes = await fetch(graphUrl);
+    debug.graphStatus = graphRes.status;
 
-    // Из графика извлекаем командные преимущества по минутам
+    if (!graphRes.ok) {
+      throw new Error(`OpenDota graph request failed with status ${graphRes.status}`);
+    }
+
+    const graphText = await graphRes.text();
+    let graph;
+    try {
+      graph = JSON.parse(graphText);
+    } catch (e) {
+      throw new Error(`Failed to parse graph JSON: ${graphText.substring(0, 200)}`);
+    }
+
+    // Извлекаем поминутные данные
     const minutes = Array.from({ length: steps }, (_, i) => i);
     const goldAdv = [];
     const xpAdv = [];
@@ -82,14 +124,14 @@ module.exports = async (req, res) => {
       killAdv.push(radiantKills - direKills);
     }
 
-    // Считаем Win Probability для Radiant
+    // Win Probability
     const winProbs = minutes.map(min => {
       return calculateWinProbability(goldAdv[min], xpAdv[min], killAdv[min]);
     });
 
     const turningPoint = findTurningPoint(winProbs, minutes);
 
-    // Обрабатываем игроков
+    // Игроки
     const players = (match.players || []).map(p => {
       const impact = calculateHeroImpact(p, dur);
       return {
@@ -111,14 +153,15 @@ module.exports = async (req, res) => {
       };
     });
 
-    // Пики / баны (если есть в данных)
-    const picks = (match.picks_bans || [])
+    // Пики / баны
+    const picksBans = match.picks_bans || [];
+    const picks = picksBans
       .filter(pb => pb.is_pick)
       .map(pb => ({
         heroId: pb.hero_id,
         team: pb.team === 0 ? 'Radiant' : 'Dire'
       }));
-    const bans = (match.picks_bans || [])
+    const bans = picksBans
       .filter(pb => !pb.is_pick)
       .map(pb => ({
         heroId: pb.hero_id,
@@ -139,11 +182,19 @@ module.exports = async (req, res) => {
       },
       goldAdvantage: goldAdv,
       xpAdvantage: xpAdv,
-      killsAdvantage: killAdv
+      killsAdvantage: killAdv,
+      debug // убираем debug из продакшена, но пока оставим
     };
 
-    res.status(200).json(result);
+    return res.status(200).json(result);
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    debug.error = err.message;
+    debug.errorStack = err.stack;
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: err.message,
+      debug
+    });
   }
 };
