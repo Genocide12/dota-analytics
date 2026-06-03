@@ -1,8 +1,8 @@
-// Константы
+// app.js — версия с подробной диагностикой
+
 const HERO_IMG_BASE = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes';
 let heroNames = {};
 
-// Загружаем имена героев один раз
 async function loadHeroNames() {
   try {
     const res = await fetch('https://api.opendota.com/api/heroes');
@@ -22,7 +22,6 @@ function getHeroImage(id) {
   return `${HERO_IMG_BASE}/${name}_icon.png`;
 }
 
-// Расчёты Win Probability (на клиенте)
 const GOLD_COEFF = 0.0004;
 const XP_COEFF = 0.0003;
 const KILL_COEFF = 0.015;
@@ -61,7 +60,6 @@ function calculateHeroImpact(player, duration) {
   return Math.round((gpmNorm * 0.3 + xpmNorm * 0.2 + kda * 0.3 + dmgNorm * 0.2) * 100);
 }
 
-// Графики
 let winProbChart, goldChart, xpChart;
 
 function createChart(ctx, label, color, data) {
@@ -91,30 +89,50 @@ function createChart(ctx, label, color, data) {
   });
 }
 
-// Основная функция загрузки и отрисовки
+// Основная функция с расширенной отладкой
 async function loadMatch(matchId) {
-  document.getElementById('loading').classList.remove('hidden');
-  document.getElementById('error').textContent = '';
-  document.getElementById('matchInfo').classList.add('hidden');
+  const loadingEl = document.getElementById('loading');
+  const errorEl = document.getElementById('error');
+  const matchInfoEl = document.getElementById('matchInfo');
+
+  loadingEl.classList.remove('hidden');
+  errorEl.textContent = '';
+  matchInfoEl.classList.add('hidden');
 
   try {
-    // 1. Данные матча
-    const matchRes = await fetch(`https://api.opendota.com/api/matches/${matchId}`);
-    if (!matchRes.ok) throw new Error(`Матч не найден (${matchRes.status})`);
-    const match = await matchRes.json();
-    if (!match.players || match.players.length === 0) throw new Error('Матч ещё не распарсен');
+    // Шаг 1: получение данных матча
+    let res = await fetch(`https://api.opendota.com/api/matches/${matchId}`);
+    if (!res.ok) {
+      throw new Error(`Ошибка получения матча: HTTP ${res.status} ${res.statusText}`);
+    }
+    let match;
+    try {
+      match = await res.json();
+    } catch (e) {
+      throw new Error('Не удалось разобрать JSON ответа матча');
+    }
+    if (!match.players || match.players.length === 0) {
+      throw new Error('Матч найден, но нет данных об игроках (возможно, ещё не обработан)');
+    }
 
     const duration = match.duration;
     const steps = Math.floor(duration / 60) + 1;
 
-    // 2. График поминутных данных
-    const graphRes = await fetch(`https://api.opendota.com/api/matches/${matchId}/graph`);
-    if (!graphRes.ok) throw new Error('График недоступен');
-    const graph = await graphRes.json();
+    // Шаг 2: получение графика
+    res = await fetch(`https://api.opendota.com/api/matches/${matchId}/graph`);
+    if (!res.ok) {
+      throw new Error(`Ошибка получения графика: HTTP ${res.status} ${res.statusText}`);
+    }
+    let graph;
+    try {
+      graph = await res.json();
+    } catch (e) {
+      throw new Error('Не удалось разобрать JSON графика');
+    }
 
-    const minutes = Array.from({length: steps}, (_, i) => i);
+    // Построение массивов
+    const minutes = Array.from({ length: steps }, (_, i) => i);
     const goldAdv = [], xpAdv = [], killAdv = [];
-
     for (let i = 0; i < steps; i++) {
       const rg = (graph.radiant_gold && graph.radiant_gold[i]) || 0;
       const dg = (graph.dire_gold && graph.dire_gold[i]) || 0;
@@ -122,7 +140,6 @@ async function loadMatch(matchId) {
       const dx = (graph.dire_xp && graph.dire_xp[i]) || 0;
       const rk = (graph.radiant_kills && graph.radiant_kills[i]) || 0;
       const dk = (graph.dire_kills && graph.dire_kills[i]) || 0;
-
       goldAdv.push(rg - dg);
       xpAdv.push(rx - dx);
       killAdv.push(rk - dk);
@@ -131,7 +148,6 @@ async function loadMatch(matchId) {
     const winProbs = minutes.map(min => calculateWinProbability(goldAdv[min], xpAdv[min], killAdv[min]));
     const turningPoint = findTurningPoint(winProbs, minutes);
 
-    // Игроки
     const players = match.players.map(p => ({
       steamId: p.account_id,
       heroId: p.hero_id,
@@ -148,7 +164,6 @@ async function loadMatch(matchId) {
       impact: calculateHeroImpact(p, duration)
     }));
 
-    // Пики/баны
     const picksBans = match.picks_bans || [];
     const picks = picksBans.filter(pb => pb.is_pick).map(pb => ({
       heroId: pb.hero_id,
@@ -164,16 +179,15 @@ async function loadMatch(matchId) {
     document.getElementById('winnerBadge').className = `badge ${match.radiant_win ? 'radiant-badge' : 'dire-badge'}`;
     const mins = Math.floor(duration / 60);
     const secs = duration % 60;
-    document.getElementById('durationLabel').textContent = `Длительность: ${mins}:${secs.toString().padStart(2,'0')}`;
+    document.getElementById('durationLabel').textContent = `Длительность: ${mins}:${secs.toString().padStart(2, '0')}`;
 
-    document.getElementById('picksContainer').innerHTML = '<strong>Пики:</strong> ' + picks.map(p => 
+    document.getElementById('picksContainer').innerHTML = '<strong>Пики:</strong> ' + picks.map(p =>
       `<div class="hero-icon" style="background-image:url('${getHeroImage(p.heroId)}')" title="${getHeroName(p.heroId)} (${p.team})"></div>`
     ).join('');
-    document.getElementById('bansContainer').innerHTML = '<strong>Баны:</strong> ' + bans.map(b => 
+    document.getElementById('bansContainer').innerHTML = '<strong>Баны:</strong> ' + bans.map(b =>
       `<div class="hero-icon ban-icon" style="background-image:url('${getHeroImage(b.heroId)}')" title="${getHeroName(b.heroId)} (${b.team})"></div>`
     ).join('');
 
-    // Графики
     if (winProbChart) winProbChart.destroy();
     const wpCtx = document.getElementById('winProbChart').getContext('2d');
     winProbChart = createChart(wpCtx, 'Win Probability', 'rgba(255, 96, 64, 1)', { minutes, values: winProbs });
@@ -194,7 +208,7 @@ async function loadMatch(matchId) {
     }
 
     document.getElementById('playersContainer').innerHTML = players
-      .sort((a,b) => b.impact - a.impact)
+      .sort((a, b) => b.impact - a.impact)
       .map(p => `
         <div class="player-card ${p.isRadiant ? 'radiant' : 'dire'}">
           <img src="${getHeroImage(p.heroId)}" alt="${getHeroName(p.heroId)}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2236%22><rect fill=%22%23333%22 width=%2264%22 height=%2236%22/></svg>'">
@@ -210,19 +224,18 @@ async function loadMatch(matchId) {
         </div>
       `).join('');
 
-    document.getElementById('matchInfo').classList.remove('hidden');
+    matchInfoEl.classList.remove('hidden');
   } catch (e) {
-    document.getElementById('error').textContent = `Ошибка: ${e.message}`;
+    // Показываем полную информацию об ошибке на странице
+    errorEl.innerHTML = `<strong>Ошибка:</strong> ${e.message}<br><small>${e.stack ? e.stack.replace(/\n/g, '<br>') : ''}</small>`;
   } finally {
-    document.getElementById('loading').classList.add('hidden');
+    loadingEl.classList.add('hidden');
   }
 }
 
-// Обработчик кнопки
 document.getElementById('loadMatchBtn').addEventListener('click', () => {
   const id = document.getElementById('matchIdInput').value.trim();
   if (id) loadMatch(id);
 });
 
-// Загрузка имён героев при старте
 loadHeroNames();
