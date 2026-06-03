@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dota 2 Analytics — Полная версия</title>
+  <title>Dota 2 Analytics – OpenDota</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -11,9 +11,10 @@
   <div class="container">
     <h1>Dota 2 Match Analytics</h1>
     <div class="input-group">
-      <input type="number" id="matchIdInput" placeholder="Введите Match ID" />
+      <input type="text" id="matchIdInput" placeholder="Введите Match ID" />
       <button id="loadMatchBtn">Загрузить матч</button>
     </div>
+    <div id="loading" class="loading hidden">Загрузка...</div>
     <div id="error" class="error"></div>
     <div id="matchInfo" class="hidden">
       <div class="info-panel">
@@ -21,14 +22,12 @@
         <span id="durationLabel"></span>
       </div>
 
-      <!-- Пики / баны -->
       <div class="pick-ban-section">
         <h3>Пики / Баны</h3>
         <div id="picksContainer" class="hero-grid"></div>
         <div id="bansContainer" class="hero-grid"></div>
       </div>
 
-      <!-- Графики -->
       <div class="chart-container">
         <h3>Win Probability</h3>
         <canvas id="winProbChart"></canvas>
@@ -45,7 +44,6 @@
         </div>
       </div>
 
-      <!-- Карточки игроков -->
       <h3>Игроки</h3>
       <div id="playersContainer" class="players-grid"></div>
     </div>
