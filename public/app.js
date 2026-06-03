@@ -1,14 +1,13 @@
-const STRATZ_HERO_IMG = 'https://cdn.stratz.com/images/dota2/heroes';
+const HERO_IMG_BASE = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes';
 
-// Кеш имён героев (загружаем один раз)
 let heroNames = {};
 
 async function loadHeroNames() {
   try {
     const res = await fetch('https://api.opendota.com/api/heroes');
     const heroes = await res.json();
-    heroes.forEach(h => heroNames[h.id] = h.localized_name || h.name);
-  } catch(e) { /* fallback */ }
+    heroes.forEach(h => heroNames[h.id] = h.localized_name || 'Unknown');
+  } catch(e) {}
 }
 
 function getHeroName(id) {
@@ -16,10 +15,11 @@ function getHeroName(id) {
 }
 
 function getHeroImage(id) {
-  return `${STRATZ_HERO_IMG}/${getHeroName(id).replace(/ /g, '_')}_icon.png`;
+  const name = getHeroName(id).replace(/ /g, '_').replace(/'/g, '');
+  return `${HERO_IMG_BASE}/${name}_icon.png`;
 }
 
-// Глобальные переменные для графиков
+// Графики
 let winProbChart, goldChart, xpChart;
 
 function createChart(ctx, label, color, data) {
@@ -51,26 +51,27 @@ function createChart(ctx, label, color, data) {
 
 function renderMatch(data) {
   document.getElementById('matchInfo').classList.remove('hidden');
+  document.getElementById('loading').classList.add('hidden');
   document.getElementById('error').textContent = '';
 
-  // Основная информация
   const winnerBadge = document.getElementById('winnerBadge');
   winnerBadge.textContent = `Победитель: ${data.winner}`;
   winnerBadge.className = `badge ${data.winner === 'Radiant' ? 'radiant-badge' : 'dire-badge'}`;
 
   const mins = Math.floor(data.duration / 60);
   const secs = data.duration % 60;
-  document.getElementById('durationLabel').textContent = `Длительность: ${mins}:${secs.toString().padStart(2,'0')}`;
+  document.getElementById('durationLabel').textContent =
+    `Длительность: ${mins}:${secs.toString().padStart(2, '0')}`;
 
   // Пики
   const picksContainer = document.getElementById('picksContainer');
-  picksContainer.innerHTML = '<strong>Пики:</strong> ' + data.picks.map(p => 
+  picksContainer.innerHTML = '<strong>Пики:</strong> ' + data.picks.map(p =>
     `<div class="hero-icon" style="background-image:url('${getHeroImage(p.heroId)}')" title="${getHeroName(p.heroId)} (${p.team})"></div>`
   ).join('');
 
   // Баны
   const bansContainer = document.getElementById('bansContainer');
-  bansContainer.innerHTML = '<strong>Баны:</strong> ' + data.bans.map(b => 
+  bansContainer.innerHTML = '<strong>Баны:</strong> ' + data.bans.map(b =>
     `<div class="hero-icon ban-icon" style="background-image:url('${getHeroImage(b.heroId)}')" title="${getHeroName(b.heroId)} (${b.team})"></div>`
   ).join('');
 
@@ -104,16 +105,16 @@ function renderMatch(data) {
 
   // Игроки
   const playersContainer = document.getElementById('playersContainer');
-  playersContainer.innerHTML = data.players.sort((a,b) => b.impact - a.impact).map(p => `
+  playersContainer.innerHTML = data.players.sort((a, b) => b.impact - a.impact).map(p => `
     <div class="player-card ${p.isRadiant ? 'radiant' : 'dire'}">
-      <img src="${getHeroImage(p.heroId)}" alt="${getHeroName(p.heroId)}" />
+      <img src="${getHeroImage(p.heroId)}" alt="${getHeroName(p.heroId)}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2236%22><rect fill=%22%23333%22 width=%2264%22 height=%2236%22/></svg>'" />
       <div class="player-stats">
         <strong>${getHeroName(p.heroId)}</strong>
         <span class="impact-badge">Impact ${p.impact}</span>
         <div>K/D/A: ${p.kills}/${p.deaths}/${p.assists}</div>
         <div>Net Worth: ${(p.netWorth/1000).toFixed(1)}k</div>
         <div>GPM: ${p.goldPerMinute} | XPM: ${p.xpPerMinute}</div>
-        <div>Урон героям: ${(p.heroDamage/1000).toFixed(1)}k</div>
+        ${p.heroDamage ? `<div>Урон героям: ${(p.heroDamage/1000).toFixed(1)}k</div>` : ''}
         ${p.towerDamage ? `<div>Урон по башням: ${(p.towerDamage/1000).toFixed(1)}k</div>` : ''}
       </div>
     </div>
@@ -124,6 +125,8 @@ document.getElementById('loadMatchBtn').addEventListener('click', async () => {
   const matchId = document.getElementById('matchIdInput').value.trim();
   if (!matchId) return;
   document.getElementById('error').textContent = '';
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('matchInfo').classList.add('hidden');
   try {
     const res = await fetch(`/api/match?matchId=${matchId}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -131,9 +134,9 @@ document.getElementById('loadMatchBtn').addEventListener('click', async () => {
     if (data.error) throw new Error(data.error);
     renderMatch(data);
   } catch (e) {
+    document.getElementById('loading').classList.add('hidden');
     document.getElementById('error').textContent = `Ошибка: ${e.message}`;
   }
 });
 
-// Предзагрузка имён героев
 loadHeroNames();
