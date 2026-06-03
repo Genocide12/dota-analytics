@@ -47,8 +47,9 @@ function t(key, ...args) {
 
 function updateUITexts() {
   document.getElementById('subtitle').textContent = t('subtitle');
-  document.getElementById('loadMatchText').textContent = t('loadMatch');
-  document.getElementById('loadingText').textContent = t('loading');
+  // Единственная кнопка – loadMatchBtn
+  document.getElementById('loadMatchBtn').textContent = t('loadMatch');
+  document.getElementById('loading').textContent = t('loading');
   document.getElementById('picksBansTitle').textContent = t('picksBans');
   document.getElementById('winProbTitle').textContent = t('winProb');
   document.getElementById('goldAdvTitle').textContent = t('goldAdv');
@@ -62,7 +63,7 @@ document.getElementById('langToggle').addEventListener('click', () => {
   localStorage.setItem('dota-analytics-lang', currentLang);
   document.getElementById('langToggle').textContent = currentLang === 'ru' ? 'EN' : 'RU';
   updateUITexts();
-  // если данные матча загружены – обновить победителя и turning point
+  // Обновить динамические тексты, если матч загружен
   const matchInfo = document.getElementById('matchInfo');
   if (!matchInfo.classList.contains('hidden')) {
     const winnerEl = document.getElementById('winnerBadge');
@@ -335,6 +336,7 @@ async function loadMatch(matchId) {
   }
 }
 
+// Назначаем обработчик один раз
 document.getElementById('loadMatchBtn').addEventListener('click', () => {
   const id = document.getElementById('matchIdInput').value.trim();
   if (id) loadMatch(id);
