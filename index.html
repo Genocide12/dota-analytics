@@ -3,62 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dota 2 Match Analytics</title>
+  <title>Dota 2 Analytics</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="app">
     <header class="header">
+      <div class="top-bar">
+        <button id="langToggle" class="lang-btn">EN</button>
+      </div>
       <h1 class="logo">Dota 2 <span>Analytics</span></h1>
-      <p class="subtitle">Win Probability • Hero Impact • Turning Points</p>
+      <p class="subtitle" id="subtitle">Вероятность победы • Влияние героев • Переломные моменты</p>
     </header>
 
     <main class="main">
       <div class="search-bar">
         <input type="text" id="matchIdInput" placeholder="Введите Match ID" class="search-input" />
-        <button id="loadMatchBtn" class="search-btn">Загрузить матч</button>
+        <button id="loadMatchBtn" class="search-btn" id="loadMatchText">Загрузить матч</button>
       </div>
 
-      <div id="loading" class="loading hidden">Анализируем матч...</div>
+      <div id="loading" class="loading hidden" id="loadingText">Анализируем матч...</div>
       <div id="error" class="error hidden"></div>
 
       <div id="matchInfo" class="match-info hidden">
-        <!-- Шапка матча -->
         <div class="match-header">
           <span id="winnerBadge" class="badge"></span>
           <span id="durationLabel" class="duration"></span>
         </div>
 
-        <!-- Пики / Баны -->
         <section class="pick-ban-section">
-          <h3>Пики / Баны</h3>
+          <h3 id="picksBansTitle">Пики / Баны</h3>
           <div id="picksContainer" class="hero-grid"></div>
           <div id="bansContainer" class="hero-grid"></div>
         </section>
 
-        <!-- Графики -->
         <section class="charts-section">
           <div class="chart-card main-chart">
-            <h3>Win Probability</h3>
+            <h3 id="winProbTitle">Вероятность победы</h3>
             <canvas id="winProbChart"></canvas>
             <div id="turningPointLabel" class="turning-point-info"></div>
           </div>
           <div class="charts-row">
             <div class="chart-card">
-              <h3>Gold Advantage</h3>
+              <h3 id="goldAdvTitle">Преимущество по золоту</h3>
               <canvas id="goldChart"></canvas>
             </div>
             <div class="chart-card">
-              <h3>XP Advantage</h3>
+              <h3 id="xpAdvTitle">Преимущество по опыту</h3>
               <canvas id="xpChart"></canvas>
             </div>
           </div>
         </section>
 
-        <!-- Игроки -->
         <section class="players-section">
-          <h3>Игроки</h3>
+          <h3 id="playersTitle">Игроки</h3>
           <div id="playersContainer" class="players-grid"></div>
         </section>
       </div>
