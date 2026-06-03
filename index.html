@@ -10,10 +10,10 @@
 <body>
   <div class="app">
     <header class="header">
-      <div class="top-bar">
+      <h1 class="logo">Dota 2 <span>Analytics</span></h1>
+      <div class="lang-switch">
         <button id="langToggle" class="lang-btn">EN</button>
       </div>
-      <h1 class="logo">Dota 2 <span>Analytics</span></h1>
       <p class="subtitle" id="subtitle">Вероятность победы • Влияние героев • Переломные моменты</p>
     </header>
 
@@ -32,37 +32,29 @@
           <span id="durationLabel" class="duration"></span>
         </div>
 
-        <section class="pick-ban-section">
-          <h3 id="picksBansTitle">Пики / Баны</h3>
-          <div id="picksContainer" class="hero-grid"></div>
-          <div id="bansContainer" class="hero-grid"></div>
-        </section>
+        <div class="chart-container">
+          <h3 id="winProbTitle">Вероятность победы</h3>
+          <canvas id="winProbChart"></canvas>
+          <div id="turningPointLabel"></div>
+        </div>
 
-        <section class="charts-section">
-          <div class="chart-card main-chart">
-            <h3 id="winProbTitle">Вероятность победы</h3>
-            <canvas id="winProbChart"></canvas>
-            <div id="turningPointLabel" class="turning-point-info"></div>
+        <div class="charts-row">
+          <div class="chart-box">
+            <h3 id="goldAdvTitle">Преимущество по золоту</h3>
+            <canvas id="goldChart"></canvas>
           </div>
-          <div class="charts-row">
-            <div class="chart-card">
-              <h3 id="goldAdvTitle">Преимущество по золоту</h3>
-              <canvas id="goldChart"></canvas>
-            </div>
-            <div class="chart-card">
-              <h3 id="xpAdvTitle">Преимущество по опыту</h3>
-              <canvas id="xpChart"></canvas>
-            </div>
+          <div class="chart-box">
+            <h3 id="xpAdvTitle">Преимущество по опыту</h3>
+            <canvas id="xpChart"></canvas>
           </div>
-        </section>
+        </div>
 
-        <section class="players-section">
+        <div class="players-section">
           <h3 id="playersTitle">Игроки</h3>
           <div id="playersContainer" class="players-grid"></div>
-        </section>
+        </div>
       </div>
     </main>
-    <footer class="footer">Data from OpenDota API</footer>
   </div>
   <script src="app.js"></script>
 </body>
