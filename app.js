@@ -1,68 +1,73 @@
+// Базовые константы
 const HERO_IMG_BASE = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes';
 let heroNames = {};
 
 // Мультиязычность
-const translations = {
+const lang = {
   ru: {
     subtitle: 'Вероятность победы • Влияние героев • Переломные моменты',
     loadMatch: 'Загрузить матч',
     loading: 'Анализируем матч...',
-    picksBans: 'Пики / Баны',
     winProb: 'Вероятность победы',
     goldAdv: 'Преимущество по золоту',
     xpAdv: 'Преимущество по опыту',
     players: 'Игроки',
     winnerRadiant: 'Победитель: Radiant',
     winnerDire: 'Победитель: Dire',
-    turningPoint: (min, from, to) => `⚡ Переломный момент: ${min}:00 (${from}% → ${to}%)`,
+    turningPoint: (m, f, t) => `⚡ Переломный момент: ${m}:00 (${f}% → ${t}%)`,
     noData: 'Нет данных',
-    errorNotFound: 'Матч не найден',
-    errorNoPlayers: 'В матче нет данных игроков'
+    errNotFound: 'Матч не найден',
+    errNoPlayers: 'В матче нет данных игроков'
   },
   en: {
     subtitle: 'Win Probability • Hero Impact • Turning Points',
     loadMatch: 'Load Match',
     loading: 'Analyzing match...',
-    picksBans: 'Picks / Bans',
     winProb: 'Win Probability',
     goldAdv: 'Gold Advantage',
     xpAdv: 'XP Advantage',
     players: 'Players',
     winnerRadiant: 'Winner: Radiant',
     winnerDire: 'Winner: Dire',
-    turningPoint: (min, from, to) => `⚡ Turning point: ${min}:00 (${from}% → ${to}%)`,
+    turningPoint: (m, f, t) => `⚡ Turning point: ${m}:00 (${f}% → ${t}%)`,
     noData: 'No data',
-    errorNotFound: 'Match not found',
-    errorNoPlayers: 'No player data in match'
+    errNotFound: 'Match not found',
+    errNoPlayers: 'No player data in match'
   }
 };
 
-let currentLang = localStorage.getItem('dota-analytics-lang') || 'ru';
-
+let currentLang = localStorage.getItem('dota-lang') || 'ru';
 function t(key, ...args) {
-  let val = translations[currentLang]?.[key] || translations.en[key] || key;
-  if (typeof val === 'function') return val(...args);
-  return val;
+  let val = lang[currentLang]?.[key] || lang.en[key] || key;
+  return typeof val === 'function' ? val(...args) : val;
 }
 
-function updateUITexts() {
-  document.getElementById('subtitle').textContent = t('subtitle');
-  // Единственная кнопка – loadMatchBtn
-  document.getElementById('loadMatchBtn').textContent = t('loadMatch');
-  document.getElementById('loading').textContent = t('loading');
-  document.getElementById('picksBansTitle').textContent = t('picksBans');
-  document.getElementById('winProbTitle').textContent = t('winProb');
-  document.getElementById('goldAdvTitle').textContent = t('goldAdv');
-  document.getElementById('xpAdvTitle').textContent = t('xpAdv');
-  document.getElementById('playersTitle').textContent = t('players');
+// Обновление текстов интерфейса
+function updateUI() {
+  const els = {
+    subtitle: document.getElementById('subtitle'),
+    loadMatchBtn: document.getElementById('loadMatchBtn'),
+    loading: document.getElementById('loading'),
+    winProbTitle: document.getElementById('winProbTitle'),
+    goldAdvTitle: document.getElementById('goldAdvTitle'),
+    xpAdvTitle: document.getElementById('xpAdvTitle'),
+    playersTitle: document.getElementById('playersTitle')
+  };
+  if (els.subtitle) els.subtitle.textContent = t('subtitle');
+  if (els.loadMatchBtn) els.loadMatchBtn.textContent = t('loadMatch');
+  if (els.loading) els.loading.textContent = t('loading');
+  if (els.winProbTitle) els.winProbTitle.textContent = t('winProb');
+  if (els.goldAdvTitle) els.goldAdvTitle.textContent = t('goldAdv');
+  if (els.xpAdvTitle) els.xpAdvTitle.textContent = t('xpAdv');
+  if (els.playersTitle) els.playersTitle.textContent = t('players');
 }
 
-// Переключение языка
+// Инициализация языка
 document.getElementById('langToggle').addEventListener('click', () => {
   currentLang = currentLang === 'ru' ? 'en' : 'ru';
-  localStorage.setItem('dota-analytics-lang', currentLang);
+  localStorage.setItem('dota-lang', currentLang);
   document.getElementById('langToggle').textContent = currentLang === 'ru' ? 'EN' : 'RU';
-  updateUITexts();
+  updateUI();
   // Обновить динамические тексты, если матч загружен
   const matchInfo = document.getElementById('matchInfo');
   if (!matchInfo.classList.contains('hidden')) {
@@ -76,35 +81,36 @@ document.getElementById('langToggle').addEventListener('click', () => {
     }
   }
 });
-
 document.getElementById('langToggle').textContent = currentLang === 'ru' ? 'EN' : 'RU';
-updateUITexts();
+updateUI();
 
-// Загружаем имена героев
+// Загрузка имён героев
 async function loadHeroNames() {
   try {
     const res = await fetch('https://api.opendota.com/api/heroes');
     const heroes = await res.json();
     heroes.forEach(h => heroNames[h.id] = h.localized_name || 'Unknown');
-  } catch(e) {}
+  } catch(e) { console.warn('Hero names not loaded'); }
 }
 
 function getHeroName(id) {
   return heroNames[id] || `Hero ${id}`;
 }
 
-// Правильная генерация URL картинки
 function getHeroImage(id) {
   const name = getHeroName(id);
+  // Убираем всё, кроме букв и пробелов, пробелы в _, в нижний регистр
   const slug = name.replace(/[^a-zA-Z\s]/g, '').replace(/\s+/g, '_').toLowerCase();
   return `${HERO_IMG_BASE}/${slug}_icon.png`;
 }
 
-// --- Логика Win Probability и Turning Point ---
+// Win Probability
 function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
 function calcWinProb(goldAdv, xpAdv) {
   return sigmoid(0.0004 * goldAdv + 0.0003 * xpAdv);
 }
+
+// Turning Point
 function findTurningPoint(probs, minutes) {
   if (probs.length < 3) return null;
   let maxChange = 0, point = null;
@@ -118,16 +124,16 @@ function findTurningPoint(probs, minutes) {
   return point;
 }
 
-// --- Бенчмарки и Impact Score ---
+// Impact Score
 function getPercentile(value, benchmarks) {
   if (!benchmarks || benchmarks.length === 0) return 50;
-  for (let i = 0; i < benchmarks.length; i++) {
-    if (value <= benchmarks[i].value) return benchmarks[i].percentile;
+  for (let b of benchmarks) {
+    if (value <= b.value) return b.percentile;
   }
   return 100;
 }
 
-async function calculateHeroImpactFromBench(player, benchData, duration) {
+async function calculateImpact(player, benchData, duration) {
   const metrics = {
     gold_per_min: player.gold_per_min,
     xp_per_min: player.xp_per_min,
@@ -137,9 +143,9 @@ async function calculateHeroImpactFromBench(player, benchData, duration) {
     tower_damage: player.tower_damage || 0
   };
   let sum = 0, cnt = 0;
-  const add = (val, benchArr) => {
-    if (!benchArr || !val) return;
-    sum += getPercentile(val, benchArr);
+  const add = (val, arr) => {
+    if (!arr || val === undefined) return;
+    sum += getPercentile(val, arr);
     cnt++;
   };
   add(metrics.gold_per_min, benchData.gold_per_min);
@@ -151,7 +157,7 @@ async function calculateHeroImpactFromBench(player, benchData, duration) {
   return cnt > 0 ? Math.round(sum / cnt) : 50;
 }
 
-// --- Графики Chart.js ---
+// Графики
 let winProbChart, goldChart, xpChart;
 
 function createChart(ctx, label, color, data) {
@@ -163,35 +169,22 @@ function createChart(ctx, label, color, data) {
         label: label,
         data: data.values,
         borderColor: color,
-        backgroundColor: color.replace('1)', '0.15)'),
-        fill: true,
-        tension: 0.3,
-        pointRadius: 0,
-        borderWidth: 2
+        backgroundColor: color.replace('1)', '0.2)'),
+        fill: true, tension: 0.3, pointRadius: 0
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { mode: 'index', intersect: false }
-      },
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
       scales: {
-        x: {
-          ticks: { color: '#8b95a5', maxTicksLimit: 10 },
-          grid: { color: 'rgba(255,255,255,0.05)' }
-        },
-        y: {
-          ticks: { color: '#8b95a5', callback: v => v.toFixed(2) },
-          grid: { color: 'rgba(255,255,255,0.05)' }
-        }
+        x: { ticks: { color: '#aaa' }, grid: { color: '#222' } },
+        y: { ticks: { color: '#aaa' }, grid: { color: '#222' } }
       }
     }
   });
 }
 
-// --- Загрузка и отображение матча ---
+// Главная функция загрузки матча
 async function loadMatch(matchId) {
   const loadingEl = document.getElementById('loading');
   const errorEl = document.getElementById('error');
@@ -202,22 +195,23 @@ async function loadMatch(matchId) {
   matchInfoEl.classList.add('hidden');
 
   try {
-    const res = await fetch(`https://api.opendota.com/api/matches/${matchId}`);
-    if (!res.ok) throw new Error(t('errorNotFound') + ` (HTTP ${res.status})`);
-    const match = await res.json();
-    if (!match.players || match.players.length === 0) throw new Error(t('errorNoPlayers'));
+    // 1. Получить данные матча
+    const matchRes = await fetch(`https://api.opendota.com/api/matches/${matchId}`);
+    if (!matchRes.ok) throw new Error(t('errNotFound') + ` (HTTP ${matchRes.status})`);
+    const match = await matchRes.json();
+    if (!match.players || match.players.length === 0) throw new Error(t('errNoPlayers'));
 
-    const dur = match.duration;
-    const steps = Math.floor(dur / 60) + 1;
+    const duration = match.duration;
+    const steps = Math.floor(duration / 60) + 1;
     const minutes = Array.from({length: steps}, (_, i) => i);
 
+    // 2. Преимущества по золоту и опыту
     const goldAdv = match.radiant_gold_adv || [];
     const xpAdv = match.radiant_xp_adv || [];
-
-    const winProbs = minutes.map(min => calcWinProb(goldAdv[min] || 0, xpAdv[min] || 0));
+    const winProbs = minutes.map(m => calcWinProb(goldAdv[m] || 0, xpAdv[m] || 0));
     const turningPoint = findTurningPoint(winProbs, minutes);
 
-    // Бенчмарки для героев
+    // 3. Загрузить бенчмарки для героев
     const heroIds = [...new Set(match.players.map(p => p.hero_id))];
     const benchPromises = heroIds.map(id =>
       fetch(`https://api.opendota.com/api/benchmarks?hero_id=${id}`)
@@ -226,14 +220,14 @@ async function loadMatch(matchId) {
     );
     const benchResults = await Promise.all(benchPromises);
     const benchMap = {};
-    heroIds.forEach((id, idx) => { benchMap[id] = benchResults[idx]; });
+    heroIds.forEach((id, i) => { benchMap[id] = benchResults[i]; });
 
-    // Игроки с Impact Score
+    // 4. Рассчитать Impact для каждого игрока
     const players = await Promise.all(match.players.map(async p => {
       const heroId = p.hero_id;
       let impact = 50;
       if (benchMap[heroId]) {
-        impact = await calculateHeroImpactFromBench(p, benchMap[heroId], dur);
+        impact = await calculateImpact(p, benchMap[heroId], duration);
       }
       return {
         heroId,
@@ -248,98 +242,72 @@ async function loadMatch(matchId) {
       };
     }));
 
-    const picksBans = match.picks_bans || [];
-    const picks = picksBans.filter(pb => pb.is_pick);
-    const bans = picksBans.filter(pb => !pb.is_pick);
-
-    // --- Рендеринг интерфейса ---
+    // 5. Отобразить победителя и длительность
     const winnerEl = document.getElementById('winnerBadge');
-    const winnerText = match.radiant_win ? t('winnerRadiant') : t('winnerDire');
-    winnerEl.textContent = winnerText;
+    winnerEl.textContent = match.radiant_win ? t('winnerRadiant') : t('winnerDire');
     winnerEl.dataset.winner = match.radiant_win ? 'Radiant' : 'Dire';
     winnerEl.className = `badge ${match.radiant_win ? 'radiant-badge' : 'dire-badge'}`;
+    const min = Math.floor(duration / 60);
+    const sec = duration % 60;
+    document.getElementById('durationLabel').textContent = `${min}:${sec.toString().padStart(2,'0')}`;
 
-    const mins = Math.floor(dur / 60);
-    const secs = dur % 60;
-    document.getElementById('durationLabel').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
-
-    // Пики
-    const picksEl = document.getElementById('picksContainer');
-    if (picks.length) {
-      picksEl.innerHTML = picks.map(p =>
-        `<div class="hero-icon" style="background-image:url('${getHeroImage(p.hero_id)}')" title="${getHeroName(p.hero_id)}"></div>`
-      ).join('');
-    } else {
-      picksEl.innerHTML = `<span style="color:#8b95a5;">${t('noData')}</span>`;
-    }
-
-    // Баны
-    const bansEl = document.getElementById('bansContainer');
-    if (bans.length) {
-      bansEl.innerHTML = bans.map(b =>
-        `<div class="hero-icon ban-icon" style="background-image:url('${getHeroImage(b.hero_id)}')" title="${getHeroName(b.hero_id)}"></div>`
-      ).join('');
-    } else {
-      bansEl.innerHTML = `<span style="color:#8b95a5;">${t('noData')}</span>`;
-    }
-
-    // Графики
+    // 6. Графики
     if (winProbChart) winProbChart.destroy();
-    const wpCtx = document.getElementById('winProbChart').getContext('2d');
-    winProbChart = createChart(wpCtx, t('winProb'), 'rgba(255, 96, 64, 1)', { minutes, values: winProbs });
+    winProbChart = createChart(document.getElementById('winProbChart').getContext('2d'),
+      t('winProb'), 'rgba(255, 96, 64, 1)', { minutes, values: winProbs });
 
     if (goldChart) goldChart.destroy();
-    const goldCtx = document.getElementById('goldChart').getContext('2d');
-    goldChart = createChart(goldCtx, t('goldAdv'), 'rgba(255, 215, 0, 1)', { minutes, values: goldAdv });
+    goldChart = createChart(document.getElementById('goldChart').getContext('2d'),
+      t('goldAdv'), 'rgba(255, 215, 0, 1)', { minutes, values: goldAdv });
 
     if (xpChart) xpChart.destroy();
-    const xpCtx = document.getElementById('xpChart').getContext('2d');
-    xpChart = createChart(xpCtx, t('xpAdv'), 'rgba(0, 191, 255, 1)', { minutes, values: xpAdv });
+    xpChart = createChart(document.getElementById('xpChart').getContext('2d'),
+      t('xpAdv'), 'rgba(0, 191, 255, 1)', { minutes, values: xpAdv });
 
+    // Turning Point
     const tpLabel = document.getElementById('turningPointLabel');
     if (turningPoint) {
-      const fromPct = Math.round(turningPoint.from * 100);
-      const toPct = Math.round(turningPoint.to * 100);
-      tpLabel.textContent = t('turningPoint', turningPoint.minute, fromPct, toPct);
-      tpLabel.dataset.tp = `${turningPoint.minute},${fromPct},${toPct}`;
+      const from = Math.round(turningPoint.from * 100);
+      const to = Math.round(turningPoint.to * 100);
+      tpLabel.textContent = t('turningPoint', turningPoint.minute, from, to);
+      tpLabel.dataset.tp = `${turningPoint.minute},${from},${to}`;
     } else {
       tpLabel.textContent = '';
-      tpLabel.dataset.tp = '';
+      delete tpLabel.dataset.tp;
     }
 
-    // Карточки игроков
+    // 7. Карточки игроков
     document.getElementById('playersContainer').innerHTML = players
       .sort((a,b) => b.impact - a.impact)
       .map(p => `
         <div class="player-card ${p.isRadiant ? 'radiant' : 'dire'}">
-          <img src="${getHeroImage(p.heroId)}" alt="${getHeroName(p.heroId)}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2272%22 height=%2242%22><rect fill=%22%231e293b%22 width=%2272%22 height=%2242%22/><text x=%2236%22 y=%2226%22 text-anchor=%22middle%22 fill=%22%238b95a5%22 font-size=%2210%22>?</text></svg>';">
+          <img src="${getHeroImage(p.heroId)}" alt="${getHeroName(p.heroId)}" onerror="this.style.display='none'">
           <div class="player-stats">
-            <div class="name">
-              ${getHeroName(p.heroId)}
-              <span class="impact-badge">Impact ${p.impact}</span>
-            </div>
-            <div class="stat-row"><span>K/D/A</span><span class="value">${p.kills}/${p.deaths}/${p.assists}</span></div>
-            <div class="stat-row"><span>Net Worth</span><span class="value">${(p.netWorth/1000).toFixed(1)}k</span></div>
-            <div class="stat-row"><span>GPM / XPM</span><span class="value">${p.gpm} / ${p.xpm}</span></div>
-            ${p.heroDamage ? `<div class="stat-row"><span>Урон героям</span><span class="value">${(p.heroDamage/1000).toFixed(1)}k</span></div>` : ''}
-            ${p.towerDamage ? `<div class="stat-row"><span>Урон башням</span><span class="value">${(p.towerDamage/1000).toFixed(1)}k</span></div>` : ''}
+            <strong>${getHeroName(p.heroId)}</strong>
+            <span class="impact-badge">Impact ${p.impact}</span>
+            <div>K/D/A: ${p.kills}/${p.deaths}/${p.assists}</div>
+            <div>Net Worth: ${(p.netWorth/1000).toFixed(1)}k</div>
+            <div>GPM: ${p.gpm} | XPM: ${p.xpm}</div>
+            ${p.heroDamage ? `<div>Урон героям: ${(p.heroDamage/1000).toFixed(1)}k</div>` : ''}
+            ${p.towerDamage ? `<div>Урон по башням: ${(p.towerDamage/1000).toFixed(1)}k</div>` : ''}
           </div>
         </div>
       `).join('');
 
     matchInfoEl.classList.remove('hidden');
   } catch (e) {
-    errorEl.textContent = e.message;
+    errorEl.textContent = `Ошибка: ${e.message}`;
     errorEl.classList.remove('hidden');
   } finally {
     loadingEl.classList.add('hidden');
   }
 }
 
-// Назначаем обработчик один раз
+// Назначение обработчика
 document.getElementById('loadMatchBtn').addEventListener('click', () => {
   const id = document.getElementById('matchIdInput').value.trim();
   if (id) loadMatch(id);
 });
 
+// Старт
 loadHeroNames();
