@@ -1,61 +1,455 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dota 2 Analytics</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dota 2 Analytics – Live</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #1a1e2b;
+            color: #d0d5e0;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 2rem;
+            color: #f0b90b;
+            margin-bottom: 5px;
+        }
+        .load-panel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .load-panel input {
+            padding: 10px 15px;
+            background: #252a3a;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            width: 220px;
+        }
+        .load-panel button {
+            padding: 10px 25px;
+            background: #f0b90b;
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .load-panel button:hover { background: #ffd54f; }
+        .match-info {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            background: #252a3a;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+        }
+        .winner { font-size: 1.5rem; font-weight: bold; }
+        .radiant { color: #66bb6a; }
+        .dire { color: #ef5350; }
+        .duration { color: #a0aec0; }
+        .turning-point-badge {
+            display: inline-block;
+            background: #f0b90b;
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-left: 10px;
+            font-size: 0.9rem;
+        }
+        .graphs-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .graph-card {
+            flex: 1 1 300px;
+            background: #252a3a;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .graph-card h3 { margin-bottom: 10px; font-size: 1.1rem; color: #cbd5e0; }
+        .players-section h2 { margin-bottom: 15px; font-size: 1.4rem; }
+        .player-card {
+            display: flex;
+            align-items: center;
+            background: #252a3a;
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            gap: 15px;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.5s ease, transform 0.5s ease, background 0.2s;
+            border-left: 5px solid transparent;
+        }
+        .player-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .player-card:hover { background: #2e3445; }
+        .player-card.radiant-team { border-left-color: #66bb6a; }
+        .player-card.dire-team { border-left-color: #ef5350; }
+        .player-card img {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: 2px solid #4a5568;
+            object-fit: cover;
+            background: #1e232f;
+        }
+        .player-info {
+            flex: 1 1 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .player-name { font-weight: bold; font-size: 1.1rem; color: #fff; }
+        .hero-name { color: #a0aec0; font-size: 0.9rem; }
+        .impact {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .impact-bar {
+            height: 8px;
+            width: 100px;
+            background: #3d4459;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .impact-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f0b90b, #ff6b6b);
+            border-radius: 4px;
+        }
+        .impact-number { font-weight: bold; color: #f0b90b; }
+        .kda { display: flex; gap: 10px; font-weight: bold; font-size: 0.95rem; }
+        .kda span { background: #343b4f; padding: 3px 8px; border-radius: 8px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 8px;
+            margin-top: 5px;
+        }
+        .stat-item {
+            background: #2d3342;
+            border-radius: 6px;
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .stat-item span { display: block; font-weight: bold; color: #fff; }
+
+        /* Debug modal */
+        .debug-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .debug-modal {
+            background: #1e1e2e;
+            border: 2px solid #ef5350;
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 500px;
+            width: 90%;
+            color: #fff;
+            box-shadow: 0 0 30px rgba(255,0,0,0.5);
+        }
+        .debug-modal h3 { color: #ef5350; margin-bottom: 15px; }
+        .debug-modal pre {
+            background: #0d0d1a;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .debug-modal button {
+            margin-top: 15px;
+            padding: 8px 20px;
+            background: #f0b90b;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .debug-modal button:last-child { background: #4a5568; color: #fff; }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .player-card { flex-direction: column; align-items: flex-start; }
+            .player-card img { align-self: center; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
 </head>
 <body>
-  <div class="app">
-    <header class="header">
-      <h1 class="logo">Dota 2 <span>Analytics</span></h1>
-      <div class="lang-switch">
-        <button id="langToggle" class="lang-btn">EN</button>
-      </div>
-      <p class="subtitle" id="subtitle">Вероятность победы • Влияние героев • Переломные моменты</p>
-    </header>
+    <div class="header">
+        <h1>⚔️ Dota 2 Analytics</h1>
+        <p>Win Probability • Hero Impact • Turning Points</p>
+    </div>
 
-    <main class="main">
-      <div class="search-bar">
-        <input type="text" id="matchIdInput" placeholder="Введите Match ID" class="search-input" />
-        <button id="loadMatchBtn" class="search-btn">Загрузить матч</button>
-      </div>
+    <div class="load-panel">
+        <input type="text" id="matchIdInput" placeholder="Match ID (напр. 7384421746)" value="7384421746">
+        <button id="loadBtn">Load Match</button>
+    </div>
 
-      <div id="loading" class="loading hidden">Анализируем матч...</div>
-      <div id="error" class="error hidden"></div>
+    <!-- Сюда будет вставляться динамический контент -->
+    <div id="dynamicContent"></div>
 
-      <div id="matchInfo" class="match-info hidden">
-        <div class="match-header">
-          <span id="winnerBadge" class="badge"></span>
-          <span id="durationLabel" class="duration"></span>
+    <!-- Debug modal -->
+    <div id="debugOverlay" class="debug-overlay">
+        <div class="debug-modal">
+            <h3>⚠️ Произошла ошибка</h3>
+            <pre id="debugMessage"></pre>
+            <button id="copyErrorBtn">📋 Copy error</button>
+            <button id="closeDebugBtn">Закрыть</button>
         </div>
+    </div>
 
-        <div class="chart-container">
-          <h3 id="winProbTitle">Вероятность победы</h3>
-          <canvas id="winProbChart"></canvas>
-          <div id="turningPointLabel"></div>
-        </div>
+    <script>
+        // ============= Глобальный отладчик ошибок =============
+        function showDebugModal(message) {
+            const overlay = document.getElementById('debugOverlay');
+            const msg = document.getElementById('debugMessage');
+            msg.textContent = message;
+            overlay.style.display = 'flex';
+        }
 
-        <div class="charts-row">
-          <div class="chart-box">
-            <h3 id="goldAdvTitle">Преимущество по золоту</h3>
-            <canvas id="goldChart"></canvas>
-          </div>
-          <div class="chart-box">
-            <h3 id="xpAdvTitle">Преимущество по опыту</h3>
-            <canvas id="xpChart"></canvas>
-          </div>
-        </div>
+        function hideDebugModal() {
+            document.getElementById('debugOverlay').style.display = 'none';
+        }
 
-        <div class="players-section">
-          <h3 id="playersTitle">Игроки</h3>
-          <div id="playersContainer" class="players-grid"></div>
-        </div>
-      </div>
-    </main>
-  </div>
-  <script src="app.js"></script>
+        document.getElementById('closeDebugBtn').addEventListener('click', hideDebugModal);
+        document.getElementById('copyErrorBtn').addEventListener('click', () => {
+            const text = document.getElementById('debugMessage').textContent;
+            navigator.clipboard.writeText(text).then(() => alert('Текст скопирован!'));
+        });
+
+        window.addEventListener('error', function(e) {
+            showDebugModal(`Необработанная ошибка:\n${e.message}\nФайл: ${e.filename}:${e.lineno}`);
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            showDebugModal(`Необработанное отклонение промиса:\n${e.reason}`);
+        });
+
+        // ============= Логика приложения =============
+        let heroesMap = null; // Кэш { hero_id: localized_name }
+
+        // Загрузка списка героев один раз
+        async function fetchHeroes() {
+            if (heroesMap) return heroesMap;
+            try {
+                const resp = await fetch('https://api.opendota.com/api/heroes');
+                if (!resp.ok) throw new Error('Не удалось загрузить список героев');
+                const heroes = await resp.json();
+                heroesMap = {};
+                heroes.forEach(h => { heroesMap[h.id] = h.localized_name; });
+                return heroesMap;
+            } catch (err) {
+                showDebugModal('Ошибка загрузки героев: ' + err.message);
+                throw err;
+            }
+        }
+
+        // Получение URL картинки героя по имени
+        function getHeroImageUrl(heroName) {
+            const formatted = heroName.toLowerCase().replace(/ /g, '-');
+            return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/${formatted}.png`;
+        }
+
+        // Рендеринг основного контента после загрузки матча
+        function renderMatch(match, graphData) {
+            const container = document.getElementById('dynamicContent');
+            if (!match || !match.players) {
+                container.innerHTML = '<p style="text-align:center;color:#ef5350;">Нет данных о матче</p>';
+                return;
+            }
+
+            const isRadiantWin = match.radiant_win;
+            const durationMin = Math.floor(match.duration / 60);
+            const durationSec = match.duration % 60;
+            const durationStr = `${durationMin}:${durationSec.toString().padStart(2,'0')}`;
+
+            // Turning point (заглушка, позже можно вычислить по графикам)
+            const turningPoint = ''; // По желанию можно добавить анализ graphData
+
+            let html = `
+                <div class="match-info">
+                    <div class="winner ${isRadiantWin ? 'radiant' : 'dire'}">🏆 Winner: ${isRadiantWin ? 'Radiant' : 'Dire'}</div>
+                    <div class="duration">⏱️ ${durationStr}</div>
+                    ${turningPoint ? `<div><span class="turning-point-badge">⚡ ${turningPoint}</span></div>` : ''}
+                </div>
+            `;
+
+            // Графики (Gold и XP)
+            if (graphData && graphData.gold && graphData.xp) {
+                html += `<div class="graphs-section">
+                    <div class="graph-card"><h3>🥇 Gold Advantage</h3><canvas id="goldChart" height="200"></canvas></div>
+                    <div class="graph-card"><h3>✨ XP Advantage</h3><canvas id="xpChart" height="200"></canvas></div>
+                </div>`;
+            }
+
+            // Игроки
+            html += `<div class="players-section"><h2>👥 Players</h2><div id="playersContainer"></div></div>`;
+            container.innerHTML = html;
+
+            // Рендер игроков
+            const playersContainer = document.getElementById('playersContainer');
+            match.players.forEach(p => {
+                const heroName = heroesMap[p.hero_id] || 'Unknown';
+                const team = p.isRadiant ? 'radiant' : 'dire';
+                const card = document.createElement('div');
+                card.className = `player-card ${team}-team`;
+                card.innerHTML = `
+                    <img src="${getHeroImageUrl(heroName)}" alt="${heroName}" loading="lazy"
+                         onerror="this.onerror=null; this.src='https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/default.png';">
+                    <div class="player-info">
+                        <div class="player-name">${p.personaname || 'Аноним'} <span style="color:#a0aec0; font-weight:normal;">(${heroName})</span></div>
+                        <div class="impact">
+                            <span class="impact-number">Impact ${(p.hero_damage / 1000).toFixed(0) || '?'}</span>
+                        </div>
+                        <div class="kda">
+                            <span>K:${p.kills}</span><span>D:${p.deaths}</span><span>A:${p.assists}</span>
+                        </div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">Net Worth<span>${(p.net_worth / 1000).toFixed(1)}k</span></div>
+                        <div class="stat-item">GPM<span>${p.gold_per_min}</span></div>
+                        <div class="stat-item">XPM<span>${p.xp_per_min}</span></div>
+                        <div class="stat-item">Hero DMG<span>${(p.hero_damage / 1000).toFixed(1)}k</span></div>
+                        <div class="stat-item">Tower DMG<span>${(p.tower_damage / 1000).toFixed(1)}k</span></div>
+                    </div>
+                `;
+                playersContainer.appendChild(card);
+            });
+
+            // Анимация появления
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.2 });
+
+            document.querySelectorAll('.player-card').forEach(card => observer.observe(card));
+
+            // Строим графики, если есть данные
+            if (graphData && graphData.gold && graphData.xp) {
+                createChart('goldChart', 'Gold Advantage', graphData.gold, '#f0b90b', 'rgba(240,185,11,0.1)');
+                createChart('xpChart', 'XP Advantage', graphData.xp, '#42a5f5', 'rgba(66,165,245,0.1)');
+            }
+        }
+
+        // Функция создания графика
+        function createChart(canvasId, label, data, color, bgColor) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: data.length}, (_, i) => `${i} мин`),
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: bgColor,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#a0aec0' } },
+                        y: { ticks: { color: '#a0aec0' } }
+                    }
+                }
+            });
+        }
+
+        // Основная функция загрузки матча
+        async function loadMatch(matchId) {
+            try {
+                document.getElementById('dynamicContent').innerHTML = '<p style="text-align:center;">⏳ Загрузка матча...</p>';
+                // Убедимся, что герои загружены
+                await fetchHeroes();
+
+                // Загружаем основную информацию
+                const matchResp = await fetch(`https://api.opendota.com/api/matches/${matchId}`);
+                if (!matchResp.ok) {
+                    throw new Error(`Матч не найден (HTTP ${matchResp.status})`);
+                }
+                const match = await matchResp.json();
+
+                // Загружаем данные графиков (может не быть для старых матчей)
+                let graphData = null;
+                try {
+                    const graphResp = await fetch(`https://api.opendota.com/api/matches/${matchId}/graph`);
+                    if (graphResp.ok) {
+                        graphData = await graphResp.json();
+                    }
+                } catch (graphErr) {
+                    console.warn('Графики не загружены:', graphErr);
+                }
+
+                renderMatch(match, graphData);
+            } catch (error) {
+                showDebugModal(`Ошибка загрузки матча:\n${error.message}`);
+                document.getElementById('dynamicContent').innerHTML = '<p style="text-align:center;color:#ef5350;">Не удалось загрузить матч</p>';
+            }
+        }
+
+        // Привязка кнопки
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            const input = document.getElementById('matchIdInput');
+            const matchId = input.value.trim();
+            if (!/^\d+$/.test(matchId)) {
+                showDebugModal('Введите корректный числовой Match ID');
+                return;
+            }
+            loadMatch(matchId);
+        });
+
+        // Загрузка дефолтного матча при открытии
+        window.addEventListener('load', () => {
+            const defaultMatchId = '7384421746';
+            document.getElementById('matchIdInput').value = defaultMatchId;
+            loadMatch(defaultMatchId);
+        });
+    </script>
 </body>
 </html>
